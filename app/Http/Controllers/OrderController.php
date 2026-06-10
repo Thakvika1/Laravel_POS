@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\EnsureAuthenticated;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -10,8 +12,17 @@ use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(EnsureAuthenticated::class);
+    }
+
     public function index(Request $request)
     {
+        if ($redirect = $this->ensureAuthenticated()) {
+            return $redirect;
+        }
+
         $query = Order::with('items')->latest();
 
         if ($request->search) {
@@ -29,12 +40,20 @@ class OrderController extends Controller
 
     public function create()
     {
+        if ($redirect = $this->ensureAuthenticated()) {
+            return $redirect;
+        }
+
         $products = Product::where('is_active', true)->where('qty', '>', 0)->get();
         return view('orders.create', compact('products'));
     }
 
     public function store(Request $request)
     {
+        if ($redirect = $this->ensureAuthenticated()) {
+            return $redirect;
+        }
+
         $request->validate([
             'customer_name'    => 'nullable|string|max:255',
             'customer_email'   => 'nullable|email|max:255',
@@ -94,6 +113,12 @@ class OrderController extends Controller
                 OrderItem::create($data);
             }
 
+            Notification::create([
+                'type' => 'order_created',
+                'message' => 'New order created: ' . $order->order_number,
+                'data' => ['order_id' => $order->id, 'order_number' => $order->order_number],
+            ]);
+
             session(['last_order_id' => $order->id]);
         });
 
@@ -103,12 +128,20 @@ class OrderController extends Controller
 
     public function show(Order $order)
     {
+        if ($redirect = $this->ensureAuthenticated()) {
+            return $redirect;
+        }
+
         $order->load('items.product');
         return view('orders.show', compact('order'));
     }
 
     public function updateStatus(Request $request, Order $order)
     {
+        if ($redirect = $this->ensureAuthenticated()) {
+            return $redirect;
+        }
+
         $request->validate(['status' => 'required|in:pending,completed,cancelled']);
 
         if ($order->status === 'cancelled' && $request->status !== 'cancelled') {
@@ -132,6 +165,10 @@ class OrderController extends Controller
 
     public function destroy(Order $order)
     {
+        if ($redirect = $this->ensureAuthenticated()) {
+            return $redirect;
+        }
+
         DB::transaction(function () use ($order) {
             foreach ($order->items as $item) {
                 $item->product?->increment('qty', $item->quantity);
@@ -146,6 +183,10 @@ class OrderController extends Controller
 
     public function invoice(Order $order)
     {
+        if ($redirect = $this->ensureAuthenticated()) {
+            return $redirect;
+        }
+
         $order->load('items');
         return view('orders.invoice', compact('order'));
     }

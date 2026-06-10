@@ -5,8 +5,7 @@ namespace Tests\Feature;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -43,9 +42,17 @@ class ProductDeletionTest extends TestCase
             'subtotal' => $product->price,
         ]);
 
-        $this->withoutMiddleware([VerifyCsrfToken::class, ValidateCsrfToken::class]);
+        $admin = User::create([
+            'name' => 'Owner',
+            'email' => 'owner-delete@example.com',
+            'password' => bcrypt('secret123'),
+            'is_admin' => true,
+        ]);
 
-        $response = $this->from(route('products.index'))->delete(route('products.destroy', $product));
+        $response = $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->from(route('products.index'))
+            ->delete(route('products.destroy', $product), ['_token' => 'test-token']);
 
         $response->assertRedirect(route('products.index'));
         $this->assertSame('Product cannot be deleted because it has associated orders.', session('error'));
