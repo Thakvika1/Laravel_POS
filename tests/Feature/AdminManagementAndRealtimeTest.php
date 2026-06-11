@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AdminManagementAndRealtimeTest extends TestCase
@@ -67,5 +68,87 @@ class AdminManagementAndRealtimeTest extends TestCase
             ->assertRedirect();
 
         $this->assertDatabaseMissing('users', ['id' => $otherAdmin->id]);
+    }
+
+    public function test_regular_admin_can_update_their_own_credentials_but_not_other_admins(): void
+    {
+        $manager = User::create([
+            'name' => 'Manager',
+            'email' => 'manager@example.com',
+            'password' => bcrypt('secret123'),
+            'is_admin' => true,
+            'is_system_admin' => false,
+        ]);
+
+        $otherAdmin = User::create([
+            'name' => 'Assistant Admin',
+            'email' => 'assistant@example.com',
+            'password' => bcrypt('secret123'),
+            'is_admin' => true,
+            'is_system_admin' => false,
+        ]);
+
+        $this->actingAs($manager)
+            ->withSession(['_token' => 'test-token'])
+            ->patch(route('admin.users.update', $manager), [
+                '_token' => 'test-token',
+                'name' => 'Manager Updated',
+                'email' => 'manager-updated@example.com',
+                'password' => 'newPassword123',
+            ])
+            ->assertRedirect();
+
+        $manager->refresh();
+        $this->assertSame('Manager Updated', $manager->name);
+        $this->assertSame('manager-updated@example.com', $manager->email);
+        $this->assertTrue(Hash::check('newPassword123', $manager->password));
+
+        $this->actingAs($manager)
+            ->withSession(['_token' => 'test-token'])
+            ->patch(route('admin.users.update', $otherAdmin), [
+                '_token' => 'test-token',
+                'name' => 'Attempted Change',
+                'email' => 'attempted@example.com',
+                'password' => 'anotherPassword123',
+            ])
+            ->assertForbidden();
+
+        $otherAdmin->refresh();
+        $this->assertSame('Assistant Admin', $otherAdmin->name);
+        $this->assertSame('assistant@example.com', $otherAdmin->email);
+    }
+
+    public function test_system_admin_can_update_other_admin_credentials(): void
+    {
+        $systemAdmin = User::create([
+            'name' => 'System Admin',
+            'email' => 'sysadmin@example.com',
+            'password' => bcrypt('secret123'),
+            'is_admin' => true,
+            'is_system_admin' => true,
+        ]);
+
+        $otherAdmin = User::create([
+            'name' => 'Manager',
+            'email' => 'manager@example.com',
+            'password' => bcrypt('secret123'),
+            'is_admin' => true,
+            'is_system_admin' => false,
+        ]);
+
+        $this->actingAs($systemAdmin)
+            ->withSession(['_token' => 'test-token'])
+            ->patch(route('admin.users.update', $otherAdmin), [
+                '_token' => 'test-token',
+                'name' => 'Manager Updated',
+                'email' => 'manager-updated@example.com',
+                'password' => 'newPassword123',
+            ])
+            ->assertRedirect();
+
+        $otherAdmin->refresh();
+        $this->assertSame('Manager Updated', $otherAdmin->name);
+        $this->assertSame('manager-updated@example.com', $otherAdmin->email);
+        $this->assertTrue(Hash::check('newPassword123', $otherAdmin->password));
     }
 }

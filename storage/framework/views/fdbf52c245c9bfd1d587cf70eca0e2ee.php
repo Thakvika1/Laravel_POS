@@ -46,21 +46,27 @@
                                     </td>
                                     <td><?php echo e($admin->created_at ? $admin->created_at->format('M d, Y') : '—'); ?></td>
                                     <td>
-                                        <?php if(Auth::user()?->is_system_admin && $admin->id !== Auth::id()): ?>
-                                            <div class="flex gap-2">
+                                        <div class="flex gap-2">
+                                            <?php if(Auth::id() === $admin->id || Auth::user()?->is_system_admin): ?>
+                                                <a href="<?php echo e(route('admin.users.edit', $admin)); ?>"
+                                                    class="btn btn-secondary btn-sm">Edit</a>
+                                            <?php endif; ?>
+
+                                            <?php if(Auth::user()?->is_system_admin && $admin->id !== Auth::id()): ?>
                                                 <form method="POST" action="<?php echo e(route('admin.users.logout', $admin)); ?>">
                                                     <?php echo csrf_field(); ?>
                                                     <button type="submit" class="btn btn-secondary btn-sm">Logout</button>
                                                 </form>
-                                                <form method="POST" action="<?php echo e(route('admin.users.destroy', $admin)); ?>" onsubmit="return confirm('Delete this admin account?')">
+                                                <form method="POST" action="<?php echo e(route('admin.users.destroy', $admin)); ?>"
+                                                    onsubmit="return confirm('Delete this admin account?')">
                                                     <?php echo csrf_field(); ?>
                                                     <?php echo method_field('DELETE'); ?>
                                                     <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                                                 </form>
-                                            </div>
-                                        <?php else: ?>
-                                            <span class="text-muted">You</span>
-                                        <?php endif; ?>
+                                            <?php elseif(Auth::id() === $admin->id): ?>
+                                                <span class="text-muted">You</span>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>

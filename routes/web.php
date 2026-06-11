@@ -33,6 +33,8 @@ Route::middleware(EnsureAuthenticated::class)->group(function () {
 
     Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users.index');
     Route::post('/admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+    Route::get('/admin/users/{user}/edit', [AdminUserController::class, 'edit'])->name('admin.users.edit');
+    Route::patch('/admin/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
     Route::post('/admin/users/{user}/logout', [AdminUserController::class, 'logoutUser'])->name('admin.users.logout');
     Route::delete('/admin/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
 });

@@ -54,6 +54,45 @@ class AdminUserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'Admin account created successfully.');
     }
 
+    public function edit(User $user)
+    {
+        if ($redirect = $this->ensureAuthenticated()) {
+            return $redirect;
+        }
+
+        $this->authorizeAdminUpdate($user);
+
+        return view('admin.edit-user', compact('user'));
+    }
+
+    public function update(Request $request, User $user)
+    {
+        if ($redirect = $this->ensureAuthenticated()) {
+            return $redirect;
+        }
+
+        $this->authorizeAdminUpdate($user);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', "unique:users,email,{$user->id}"],
+            'password' => ['nullable', 'string', 'min:8'],
+        ]);
+
+        $updates = [
+            'name' => $data['name'],
+            'email' => $data['email'],
+        ];
+
+        if (! empty($data['password'])) {
+            $updates['password'] = Hash::make($data['password']);
+        }
+
+        $user->forceFill($updates)->save();
+
+        return redirect()->route('admin.users.index')->with('success', 'Admin credentials updated successfully.');
+    }
+
     public function logoutUser(User $user)
     {
         if ($redirect = $this->ensureAuthenticated()) {
@@ -84,5 +123,16 @@ class AdminUserController extends Controller
         $user->delete();
 
         return back()->with('success', 'Admin deleted successfully.');
+    }
+
+    protected function authorizeAdminUpdate(User $user): void
+    {
+        abort_unless(Auth::user()?->is_admin, 403);
+
+        $currentUser = Auth::user();
+
+        if (! $currentUser?->is_system_admin && $currentUser?->id !== $user->id) {
+            abort(403);
+        }
     }
 }

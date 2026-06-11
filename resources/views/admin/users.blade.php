@@ -46,8 +46,13 @@
                                     </td>
                                     <td>{{ $admin->created_at ? $admin->created_at->format('M d, Y') : '—' }}</td>
                                     <td>
-                                        @if (Auth::user()?->is_system_admin && $admin->id !== Auth::id())
-                                            <div class="flex gap-2">
+                                        <div class="flex gap-2">
+                                            @if (Auth::id() === $admin->id || Auth::user()?->is_system_admin)
+                                                <a href="{{ route('admin.users.edit', $admin) }}"
+                                                    class="btn btn-secondary btn-sm">Edit</a>
+                                            @endif
+
+                                            @if (Auth::user()?->is_system_admin && $admin->id !== Auth::id())
                                                 <form method="POST" action="{{ route('admin.users.logout', $admin) }}">
                                                     @csrf
                                                     <button type="submit" class="btn btn-secondary btn-sm">Logout</button>
@@ -58,10 +63,10 @@
                                                     @method('DELETE')
                                                     <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                                                 </form>
-                                            </div>
-                                        @else
-                                            <span class="text-muted">You</span>
-                                        @endif
+                                            @elseif (Auth::id() === $admin->id)
+                                                <span class="text-muted">You</span>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
